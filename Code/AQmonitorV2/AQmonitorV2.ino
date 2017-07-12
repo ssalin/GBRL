@@ -30,8 +30,12 @@
 #define SAMPLE_RESOLUTION 10000 //how often device will gather + report sensor data
 #define SD_CS //chip select for SD card
 #define RTC_CS //chip select for RTC
+#define IRQ_PIN A2 //analogue 2
+#define PRINT_USA_DATE //October 31, 2016: 10/31/16 vs. 31/10/16
 #define FILENAME "DATALOG.TXT"
-
+#define COPIN A3 //analogue 3
+#define OZONEPIN A1 //analogue 1
+#define PPMPIN  0 //MKR_0
 /***********/
 /**Globals**/
 /***********/
@@ -44,11 +48,9 @@ const char* MY_SSID = "PSU"; //does not currently seem to want to connect to PSU
 const char* MY_PWD =  ""; //wifi password
 
 //Define analog input and values for for Mics 03 sensor:
-const int OzoneMPin=A1; 
 int OzoneMSensorValue=0;
 
 //Set Up digital pin for Shinyei PM sensor
-int pin = 0; //MKR_0
 unsigned long duration;
 unsigned long starttime;
 unsigned long sampletime_ms = 1000;
@@ -57,7 +59,6 @@ float ratio = 0;
 float concentration = 0;
 
 //Define analog input and values for EC4-500-CO sensor:
-const int COPin=A3;
 int COSensorValue=0;
 int CO=0;
 
@@ -94,10 +95,10 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
   }
   Serial.println("serial conection initialized");
-  pinMode(0,INPUT); // PPM
-  pinMode(A1,INPUT);// Ozone
-  pinMode(A2,INPUT_PULLUP);// interrupts from RTC
-  pinMode(A3,INPUT);// CO
+  pinMode(PPMPIN,INPUT); // PPM
+  pinMode(OZONEPIN,INPUT);// Ozone
+  pinMode(IRQ_PIN,INPUT_PULLUP);// interrupts from RTC
+  pinMode(COPIN,INPUT);// CO
   // attempt to connect to Wifi network:
     
   while (status != WL_CONNECTED) {
@@ -199,7 +200,7 @@ int readCO2() {
 
 int getppm(){
  //Read Particle Count from PM sensor
-  duration = pulseIn(pin, LOW);
+  duration = pulseIn(PPMPIN, LOW);
   lowpulseoccupancy = lowpulseoccupancy+duration;
 
   if ((millis()-starttime) > sampletime_ms){
@@ -318,10 +319,10 @@ void loop() {
   //get ppm information
   float PPM = getppm();//concentration;
   //read O3
-  int Ozone = analogRead(OzoneMPin); //Read value from ozone pin
+  int Ozone = analogRead(OZONEPIN); //Read value from ozone pin
   //Ozone = 385-(Ozone/2);//ozone w/ a calibration curve
   //read CO
-  float CO = analogRead(COPin);
+  float CO = analogRead(COPIN);
 
   printdata(Temp,Hum,PPM,Ozone,CO);
   //logdata(Temp,Hum,PPM,Ozone,CO);
