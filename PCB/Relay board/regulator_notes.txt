@@ -1,0 +1,4 @@
+http://www.reuk.co.uk/wordpress/electric-circuit/lm317-voltage-calculator/
+
+LM317T
+R1= 270, R2 = 2.2k

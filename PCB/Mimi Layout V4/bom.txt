@@ -1,0 +1,46 @@
+Partlist
+
+Exported from Mimi_layout.sch at 6/22/2017 7:39 PM
+
+EAGLE Version 7.6.0 Copyright (c) 1988-2016 CadSoft
+
+Assembly variant: 
+
+Part          Value          Device               Package   Library        Sheet
+
+C5            100nf          C-USC0805            C0805     resistor       1
+C6            68uf           C-USC0805            C0805     resistor       1
+C8            100nf          C-USC0805            C0805     resistor       1
+C9            10uf           C-USC0805            C0805     resistor       1
+D1            MBRA140        DIODESMA             SMA-DIODE SparkFun       1
+EC4-500                      PINHD-1X3            1X03      pinhead        1
+FAN                          PINHD-1X2            1X02      pinhead        1
+IC1           AD820N         AD820N               DIL08     analog-devices 1
+IC2           AD820N         AD820N               DIL08     analog-devices 1
+IC3           AD820N         AD820N               DIL08     analog-devices 1
+L1            47uH           INDUCTORCR54         CR54      SparkFun       1
+MICS_03                      PINHD-1X4            1X04      pinhead        1
+MKR1000_LEFT                 PINHD-1X14           1X14      pinhead        1
+MKR1000_RIGHT                PINHD-1X14           1X14      pinhead        1
+R1            22K            R-US_R0805           R0805     resistor       1
+R2            68K            R-US_R0805           R0805     resistor       1
+R3            330            R-US_R0805           R0805     resistor       1
+R4            330            R-US_R0805           R0805     resistor       1
+R5            330            R-US_R0805           R0805     resistor       1
+R6            10k            R-US_R0805           R0805     resistor       1
+R7            10k            R-US_R0805           R0805     resistor       1
+R8            10K            R-US_R0805           R0805     resistor       1
+R9            0              R-US_R0805           R0805     resistor       1
+R10           0              R-US_R0805           R0805     resistor       1
+R11           820            R-US_R0805           R0805     resistor       1
+R12           82             R-US_R0805           R0805     resistor       1
+R13           0              R-US_R0805           R0805     resistor       1
+R14           10k            R-US_R0805           R0805     resistor       1
+R15           10k            R-US_R0805           R0805     resistor       1
+R16           10             R-US_R0805           R0805     resistor       1
+R17           10             R-US_R0805           R0805     resistor       1
+R18           10k            R-US_R0805           R0805     resistor       1
+R19           330            R-US_R0805           R0805     resistor       1
+SHINYEI                      PINHD-1X3            1X03      pinhead        1
+SHT31_CON                    PINHD-1X7            1X07      pinhead        1
+U1            NCP1402        V_REG_NCP1400SOT23-5 SOT23-5   SparkFun       1
