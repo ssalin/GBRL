@@ -13,15 +13,31 @@
 //  RTC CS->
 //  SD CS ->
 //  RTC innterupts will come on A2
-#include <WiFi101.h>
-#include "Adafruit_SHT31.h"
-Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
+/************/
+/**Includes**/
+/************/
+#include <WiFi101.h>
+#include<SPI.h> //SPI lib, RTC/SD card
+#include<SD.h>  // SD lib
+#include "Adafruit_SHT31.h" //temp/RH sensor lib
+
+/***************/
+/**Definitions**/
+/***************/
 #define TIME_HEADER  "T"   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
+#define SAMPLE_RESOLUTION 10000 //how often device will gather + report sensor data
+#define SD_CS //chip select for SD card
+#define RTC_CS //chip select for RTC
 
+/***********/
+/**Globals**/
+/***********/
+//pushingbox API stuff
 const char WEBSITE[] = "api.pushingbox.com"; //pushingbox API server
 const String devid = "v9606769D2CC718F"; //device ID on Pushingbox for our Scenario
+
 //***WIFI SETTINGS***
 const char* MY_SSID = "PSU"; //does not currently seem to want to connect to PSU network, can connect at home fine
 const char* MY_PWD =  ""; //wifi password
@@ -44,8 +60,14 @@ const int COPin=A3;
 int COSensorValue=0;
 int CO=0;
 
-//wifi shennanigans
-int status = WL_IDLE_STATUS;
+//make a SHT31 object
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
+
+int status = WL_IDLE_STATUS; //global to avoid passing
+
+/**************/
+/**Functions**/
+/*************/
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -100,6 +122,8 @@ void setup() {
 
 
 //this code is only used by K-30 C02 sensor.
+//later i will make a different version of the code for with/without CO2
+//because it takes a up a lot of space and is ugly.
 int readCO2() { 
   int co2_value = 0;  // Store the CO2 value inside this variable. 
   digitalWrite(13, HIGH);  // turn on LED 
@@ -191,7 +215,7 @@ int getppm(){
   return concentration;
 }
 
-void printdata(Temp,Hum,PPM,Ozone,CO){
+void printdata(int Temp, int Hum, int PPM, int Ozone, int CO){
   Serial.print("Temperature: ");
   Serial.print(Temp);
   Serial.print(" *F\n");
@@ -209,14 +233,38 @@ void printdata(Temp,Hum,PPM,Ozone,CO){
   Serial.println("\n");  
 }
 
-int logdata(){
-  //code that writes data to SD care will go here 
+//function to write data to SD card.
+int logdata(int Temp, int Hum, int PPM, int Ozone, int CO){
+
+   if (!SD.begin(SD_CS)) {
+      Serial.println("Card failed, or not present");
+      return 1; //no news is good news
+  }
+
+  String WriteMe = "";
+  
+  int data[5]; 
+  data[0] = Temp;
+  data[1] = Hum;
+  data[2] = PPM;
+  data[3] = Ozone;
+  data[4] = CO;
+
+  //WriteMe += datetime; // timestamp at beginning
+  //WriteMe += ","; // CSV delimiter
+  //get time
+  for (int i = 0; i < 5; ++i){
+    WriteMe += String(data[i]);
+    if(i != 4) //no delimeter after final data item
+      WriteMe += ",";
+  }
+  //switch values to strings
+  
 }
 
 //function for sending data to cloud. right now it uses google sheets
 //but it may get changed to azure since sheets isnt very elegant
-int postdata(){
-  
+int postdata(int Temp, int Hum, int PPM, int Ozone, int CO){
   Serial.println("\nSending Data to Server..."); 
   WiFiClient client;  //Instantiate WiFi object, can scope from here or Globally
 
@@ -244,9 +292,8 @@ int postdata(){
 
 //main
 void loop() {
-
    // Wait between measurements.
-  delay(10000);
+  delay(SAMPLE_RESOLUTION);
 
   //Data Assignments
   //Use float for higher resolution
@@ -265,5 +312,5 @@ void loop() {
 
   printdata(Temp,Hum,PPM,Ozone,CO);
   //logdata(Temp,Hum,PPM,Ozone,CO);
-  //postdata((Temp,Hum,PPM,Ozone,CO);
+  postdata(Temp,Hum,PPM,Ozone,CO);
 }
