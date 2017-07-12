@@ -208,6 +208,41 @@ void printdata(Temp,Hum,PPM,Ozone,CO){
   Serial.print(CO);
   Serial.println("\n");  
 }
+
+int logdata(){
+  //code that writes data to SD care will go here 
+}
+
+//function for sending data to cloud. right now it uses google sheets
+//but it may get changed to azure since sheets isnt very elegant
+int postdata(){
+  
+  Serial.println("\nSending Data to Server..."); 
+  WiFiClient client;  //Instantiate WiFi object, can scope from here or Globally
+
+    //API service using WiFi Client through PushingBox then relayed to Google
+    if (client.connect(WEBSITE, 80)){ 
+         client.print("GET /pushingbox?devid=" + devid
+       + "&humidityData=" + (String) Temp
+       + "&celData="      + (String) Hum
+       + "&fehrData="     + (String) PPM
+       + "&hicData="      + (String) Ozone
+       + "&hifData="      + (String) CO
+         );
+
+      // HTTP 1.1 provides a persistent connection, allowing batched requests
+      // or pipelined to an output buffer
+      client.println(" HTTP/1.1"); 
+      client.print("Host: ");
+      client.println(WEBSITE);
+      client.println("User-Agent: MKR1000/1.0");
+      //for MKR1000, unlike esp8266, do not close connection
+      client.println();
+      Serial.println("\nData Sent"); 
+    }
+}
+
+//main
 void loop() {
 
    // Wait between measurements.
@@ -231,29 +266,4 @@ void loop() {
   printdata(Temp,Hum,PPM,Ozone,CO);
   //logdata(Temp,Hum,PPM,Ozone,CO);
   //postdata((Temp,Hum,PPM,Ozone,CO);
-
-  Serial.println("\nSending Data to Server..."); 
-    // if you get a connection, report back via serial:
-  WiFiClient client;  //Instantiate WiFi object, can scope from here or Globally
-
-    //API service using WiFi Client through PushingBox then relayed to Google
-    if (client.connect(WEBSITE, 80)){ 
-         client.print("GET /pushingbox?devid=" + devid
-       + "&humidityData=" + (String) Temp
-       + "&celData="      + (String) Hum
-       + "&fehrData="     + (String) PPM
-       + "&hicData="      + (String) Ozone
-       + "&hifData="      + (String) CO
-         );
-
-      // HTTP 1.1 provides a persistent connection, allowing batched requests
-      // or pipelined to an output buffer
-      client.println(" HTTP/1.1"); 
-      client.print("Host: ");
-      client.println(WEBSITE);
-      client.println("User-Agent: MKR1000/1.0");
-      //for MKR1000, unlike esp8266, do not close connection
-      client.println();
-      Serial.println("\nData Sent"); 
-    }
 }
