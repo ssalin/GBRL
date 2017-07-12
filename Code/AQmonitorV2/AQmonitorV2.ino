@@ -30,6 +30,7 @@
 #define SAMPLE_RESOLUTION 10000 //how often device will gather + report sensor data
 #define SD_CS //chip select for SD card
 #define RTC_CS //chip select for RTC
+#define FILENAME "DATALOG.TXT"
 
 /***********/
 /**Globals**/
@@ -238,12 +239,14 @@ int logdata(int Temp, int Hum, int PPM, int Ozone, int CO){
 
    if (!SD.begin(SD_CS)) {
       Serial.println("Card failed, or not present");
-      return 1; //no news is good news
+      return 1; //if(logdata(args))print "error"
   }
-
-  String WriteMe = "";
   
-  int data[5]; 
+  //string that gets written to SD card
+  String WriteMe = "";
+
+  //prepping data for ease of appending to WriteMe
+  int data[5]; //should really use a #define instead of hardcoded 5. somthing like NUM_SENSORS
   data[0] = Temp;
   data[1] = Hum;
   data[2] = PPM;
@@ -258,8 +261,18 @@ int logdata(int Temp, int Hum, int PPM, int Ozone, int CO){
     if(i != 4) //no delimeter after final data item
       WriteMe += ",";
   }
-  //switch values to strings
+
+  //open file
+  File W_File = SD.open(FILENAME, FILE_WRITE);
+  if(W_File){
+    
+  }
   
+  else{
+    Serial.println("error opening file");
+    return 1; // if(logdata(args))print "error"
+  }
+  return 0; //no return = good
 }
 
 //function for sending data to cloud. right now it uses google sheets
