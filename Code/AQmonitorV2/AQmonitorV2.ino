@@ -21,6 +21,7 @@
 #include<SPI.h> //SPI lib, RTC/SD card
 #include<SD.h>  // SD lib
 #include "Adafruit_SHT31.h" //temp/RH sensor lib
+#include <SparkFunDS3234RTC.h> //rtc lib
 
 /***************/
 /**Definitions**/
@@ -28,14 +29,15 @@
 #define TIME_HEADER  "T"   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 #define SAMPLE_RESOLUTION 10000 //how often device will gather + report sensor data
-#define SD_CS //chip select for SD card
-#define RTC_CS //chip select for RTC
+#define SD_CS 7//chip select for SD card
+#define RTC_CS 6 //chip select for RTC
 #define IRQ_PIN A2 //analogue 2
 #define PRINT_USA_DATE //October 31, 2016: 10/31/16 vs. 31/10/16
 #define FILENAME "DATALOG.TXT"
 #define COPIN A3 //analogue 3
 #define OZONEPIN A1 //analogue 1
 #define PPMPIN  0 //MKR_0
+
 /***********/
 /**Globals**/
 /***********/
@@ -100,7 +102,7 @@ void setup() {
   pinMode(IRQ_PIN,INPUT_PULLUP);// interrupts from RTC
   pinMode(COPIN,INPUT);// CO
   // attempt to connect to Wifi network:
-    
+//should ifdef its out    
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to Network: ");
     Serial.println(MY_SSID);
@@ -111,21 +113,26 @@ void setup() {
   }
   Serial.println("Connected to wifi");
   printWifiStatus();
-  
+//end ifdef  
   if (! sht31.begin(0x44)) {   // Set to 0x45 for alternate i2c addr
     Serial.println("Couldn't find SHT31");
   }
   else Serial.println("found SHT31");
 
   //set up RTC
-    // make sure date/time info is right!
-  
+   rtc.begin(RTC_CS);
+   rtc.autoTime(); //set time to compiler time. will be a little off but VERY close
+   rtc.update(); //needs to be done to set alarms
+   rtc.enableAlarmInterrupt();
+   //rtc.setAlarm1(30); //alarm1 alert when seconds hits 30
+   rtc.setAlarm1(rtc.minute() + 5); //alarm1 triggered when minute increments by 5
 }
 
 
 //this code is only used by K-30 C02 sensor.
 //later i will make a different version of the code for with/without CO2
 //because it takes a up a lot of space and is ugly.
+//alternatively ifdef it out
 int readCO2() { 
   int co2_value = 0;  // Store the CO2 value inside this variable. 
   digitalWrite(13, HIGH);  // turn on LED 
@@ -253,8 +260,10 @@ int logdata(int Temp, int Hum, int PPM, int Ozone, int CO){
   data[2] = PPM;
   data[3] = Ozone;
   data[4] = CO;
-
-  //WriteMe += datetime; // timestamp at beginning
+  String htime = String(rtc.hour()) + ":" + String(rtc.minute()) + ":" + String(rtc.second()) + ":";
+  String hdate = String(rtc.month()) + "/" + String(rtc.date()) + "/" + String(rtc.year());
+  
+  WriteMe += hdate + htime; // timestamp at beginning
   //WriteMe += ","; // CSV delimiter
   //get time
   for (int i = 0; i < 5; ++i){
@@ -306,7 +315,11 @@ int postdata(int Temp, int Hum, int PPM, int Ozone, int CO){
 
 //main
 void loop() {
+  noInterrupts(); //turn interrupts off
+  //wake up
+  
    // Wait between measurements.
+   //can probably be replaced by waiting for IRQ from RTC
   delay(SAMPLE_RESOLUTION);
 
   //Data Assignments
@@ -327,4 +340,6 @@ void loop() {
   printdata(Temp,Hum,PPM,Ozone,CO);
   //logdata(Temp,Hum,PPM,Ozone,CO);
   postdata(Temp,Hum,PPM,Ozone,CO);
+  //go back to sleep
+  interrupts(); //turn interrupts back on
 }
