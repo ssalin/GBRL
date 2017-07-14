@@ -320,7 +320,7 @@ void loop() {
   
    // Wait between measurements.
    //can probably be replaced by waiting for IRQ from RTC
-  delay(SAMPLE_RESOLUTION);
+  //delay(SAMPLE_RESOLUTION);
 
   //Data Assignments
   //Use float for higher resolution
