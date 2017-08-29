@@ -18,40 +18,41 @@
 /**Includes**/
 /************/
 #include <WiFi101.h>
-#include<SPI.h> //SPI lib, RTC/SD card
-#include<SD.h>  // SD lib
+#include <SPI.h> //SPI lib, RTC/SD card
+#include <SD.h>  // SD lib
 #include "Adafruit_SHT31.h" //temp/RH sensor lib
 #include <SparkFunDS3234RTC.h> //rtc lib
-#include <sleep.h>
-
+//#include <ArduinoLowPower.h>
+/**********/
+/*Settings*/
+/**********/
+#define SAMPLE_RESOLUTION 600000 //how often device will gather + report sensor data. right now it's every 10 minutes!
+#define FILENAME "DATA.csv"
+#define WIFIEN 1//change to 1 if wifi connection is used
+const PROGMEM char* MY_SSID = "TEQUILA BATTERIES 2.4GHz";//"PSU";
+#define SECURED 1 //change to 1 if the netwrok is secure
+const PROGMEM char* MY_PWD =  "HOOKERDICK69";   //""; //wifi password
+#define DEV_NAME "DEV2"
+#define LP 0 // change to 1 to use power saving code
 /***************/
 /**Definitions**/
 /***************/
 #define TIME_HEADER  "T"   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
-#define SAMPLE_RESOLUTION 5000 //how often device will gather + report sensor data
 #define SD_CS 7//chip select for SD card
 #define RTC_CS 6 //chip select for RTC
 #define RTC_IRQ A2 // A2 connected to SQW of RTC
-#define IRQ_PIN A2 //analogue 2
 #define PRINT_USA_DATE //October 31, 2016: 10/31/16 vs. 31/10/16
-#define FILENAME "DATA.csv"
 #define COPIN A3 //analogue 3
 #define OZONEPIN A1 //analogue 1
 #define PPMPIN  0 //MKR_0
-#define DEV_NAME "DEV2"
-
 /***********/
 /**Globals**/
 /***********/
 //pushingbox API stuff
-const char WEBSITE[] = "api.pushingbox.com"; //pushingbox API server
-const String devid = "v9606769D2CC718F"; //device ID on Pushingbox for our Scenario
+const PROGMEM char WEBSITE[] = "api.pushingbox.com"; //pushingbox API server
+const PROGMEM String devid = "v9606769D2CC718F"; //device ID on Pushingbox for our Scenario
 
-//***WIFI SETTINGS***
-const char* MY_SSID = "PSU";//"PSU"; //does not currently seem to want to connect to PSU network, can connect at home fine
-const char* MY_PWD =  "";   //""; //wifi password
-const int secured = 0; //change to 1 if connecting to secured WIFI
 //Define analog input and values for for Mics 03 sensor:
 int OzoneMSensorValue = 0;
 int firstrun = 1; //used to write special things the first time through
@@ -63,9 +64,11 @@ unsigned long lowpulseoccupancy = 0;
 float ratio = 0;
 float concentration = 0;
 
-//Define analog input and values for EC4-500-CO sensor:
-int COSensorValue = 0;
-int CO = 0;
+float Temp;
+float Hum;
+float PPM;
+float Ozone; 
+float CO;
 
 //make a SHT31 object
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
@@ -75,6 +78,11 @@ int status = WL_IDLE_STATUS; //global to avoid passing
 /**************/
 /**Functions**/
 /*************/
+void wakeup(){ 
+  //empty funcion
+  //because IRQ handler needs a function
+  //but we just wake up on IRQ, nothing special
+} 
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
@@ -84,19 +92,18 @@ void printWifiStatus() {
   IPAddress ip = WiFi.localIP();
   Serial.print("IP Address: ");
   Serial.println(ip);
-
   // print the received signal strength:
   long rssi = WiFi.RSSI();
-  Serial.print("signal strength (RSSI):");
+  Serial.print(F("signal strength (RSSI):"));
   Serial.print(rssi);
-  Serial.println(" dBm");
+  Serial.println(F(" dBm"));
 }
 void Con2wifi(){
   while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to Network: ");
+    Serial.print(F("Attempting to connect to Network: "));
     Serial.println(MY_SSID);
     
-    if(secured)
+    if(SECURED)
       status = WiFi.begin(MY_SSID, MY_PWD); //connect to secured wifi
     else
       status = WiFi.begin(MY_SSID); //connect to open wifi
@@ -107,29 +114,21 @@ void setup() {
   //Initialize serial and wait for port to open:
   Serial.begin(9600);
   starttime = millis();
-  //while (!Serial) {
-  //  ; // wait for serial port to connect. Needed for native USB port only
-  //}
+  delay(5000);
+  //while (!Serial){ }
   Serial.println("serial conection initialized");
   pinMode(PPMPIN, INPUT); // PPM
   pinMode(OZONEPIN, INPUT); // Ozone
-  pinMode(IRQ_PIN, INPUT_PULLUP); // interrupts from RTC
+  pinMode(RTC_IRQ, INPUT_PULLUP); // interrupts from RTC
   pinMode(COPIN, INPUT); // CO
-  // attempt to connect to Wifi network:
-  //should ifdef its out
-  Con2wifi(); //connect to the wifi
-  //endifdef
-  Serial.println("Connected to wifi");
-  printWifiStatus();
-  //end ifdef
-  if (!sht31.begin(0x44)) {   // Set to 0x45 for alternate i2c addr
-    Serial.println("Couldn't find SHT31");
-  }
-  Serial.println("starting SD");
-  if (!SD.begin(SD_CS)) {
-    Serial.println("Card failed, or not present");
-  }
-  Serial.println("started SD");
+  
+  if (!sht31.begin(0x44))    // Set to 0x45 for alternate i2c addr
+    Serial.println(F("Couldn't find SHT31"));
+  
+  //Serial.println(F("starting SD"));
+  //if (!SD.begin(SD_CS)) 
+  //  Serial.println(F("PROBLEM WITH SD CARD"));
+  Serial.println(F("starting RTC"));
   //else Serial.println("found SHT31");
 
   //set up RTC
@@ -140,8 +139,6 @@ void setup() {
   //rtc.setAlarm1(30); //alarm1 alert when seconds hits 30
   //rtc.setAlarm1(rtc.minute() + 5); //alarm1 triggered when minute increments by 5
 }
-
-
 //this code is only used by K-30 C02 sensor.
 //later i will make a different version of the code for with/without CO2
 //because it takes a up a lot of space and is ugly.
@@ -236,31 +233,30 @@ float getppm() {
   return concentration;
 }
 
-void printdata(float Temp, float Hum, float PPM, float Ozone, float CO) {
+void printdata() {
   rtc.update();
   String htime = String(rtc.hour()) + ":" + String(rtc.minute()) + ":" + String(rtc.second());
   String hdate = String(rtc.month()) + "/" + String(rtc.date()) + "/" + String(rtc.year()) + " - ";
   Serial.println(hdate + htime);
-  Serial.print("Temperature: ");
+  Serial.print(F("Temperature: "));
   Serial.print(Temp);
-  Serial.print(" *C\n");
-  Serial.print("Humidity: ");
+  Serial.println(F(" *C"));
+  Serial.print(F("Humidity: "));
   Serial.print(Hum);
-  Serial.print("%\n");
+  Serial.println(F("%"));
   Serial.print("PPM:  ");
-  Serial.print(PPM);
-  Serial.print("\n");
-  Serial.print("Ozone Concentration: ");
-  Serial.print(Ozone);
-  Serial.print("\n");
-  Serial.print("CO Concentration: ");
-  Serial.print(CO);
-  Serial.println("\n");
+  Serial.println(PPM);
+  Serial.print(F("Ozone Concentration: "));
+  Serial.println(Ozone);
+  Serial.print(F("CO Concentration: "));
+  Serial.println(CO);
+  Serial.println();
 }
 
 //function to write data to SD card.
-int logdata(float Temp, float Hum, float PPM, float Ozone, float CO) {
-
+int logdata() {
+  
+  SD.begin(SD_CS); //for some reason this fixed it only writing once.
   //string that gets written to SD card
   String WriteMe = "";
 
@@ -285,14 +281,15 @@ int logdata(float Temp, float Hum, float PPM, float Ozone, float CO) {
 
     if (firstrun) {
       firstrun = 0; //the global
-      W_File.println("Beginning of this data block");
-      W_File.println("Date,Time,Temperature(Celcius),Humidity(%),Particles(pcs/.01 cubic feet),Ozone(PPB),CO(PPM)");
+      W_File.println(F("Beginning of this data block"));
+      W_File.println(F("Date,Time,Temperature(Celcius),Humidity(%),Particles(pcs/.01 cubic feet),Ozone(PPB),CO(PPM)"));
       W_File.println();
     }
     W_File.print(hdate + ","); //make nice CSV's
     W_File.print(htime + ",");//make nice CSV's
     for (int i = 0; i < 5; ++i) {
       W_File.print(String(data[i]));
+      W_File.flush();
       //WriteMe += String(data[i]);
       if (i != 4) //no delimeter after final data item
         W_File.print(",");
@@ -303,19 +300,17 @@ int logdata(float Temp, float Hum, float PPM, float Ozone, float CO) {
 
 
   else {
-    Serial.println("error opening file");
+    Serial.println(F("error opening file"));
     return 1; //
   }
+
   return 0; //no return = good
 }
 
 //function for sending data to cloud. right now it uses google sheets
 //but it may get changed to azure since sheets isnt very elegant
-int postdata(float Temp, float Hum, float PPM, float Ozone, float CO) {
-  if (status != WL_CONNECTED){
-    Con2wifi();
-    printWifiStatus();
-  }
+int postdata() {
+  Con2wifi();
   Serial.println("\nSending Data to Server..."); 
     // if you get a connection, report back via serial:
   WiFiClient client;  //Instantiate WiFi object, can scope from here or Globally
@@ -330,51 +325,53 @@ int postdata(float Temp, float Hum, float PPM, float Ozone, float CO) {
        + "&name="         + (String) DEV_NAME
          );
 
-      // HTTP 1.1 provides a persistent connection, allowing batched requests
-      // or pipelined to an output buffer
       client.println(" HTTP/1.1"); 
       client.print("Host: ");
       client.println(WEBSITE);
       client.println("User-Agent: MKR1000/1.0");
-      //for MKR1000, unlike esp8266, do not close connection
       client.println();
       client.stop();
       Serial.println("\nData Sent"); 
     }
    
-    else{
-      Serial.println("ERROR CONNECTING TO SERVER");
-      WiFi.disconnect();
-      status = WL_IDLE_STATUS;
-    }
+    else
+      Serial.println(F("ERROR CONNECTING TO SERVER"));
+ 
+    WiFi.disconnect();
+    status = WL_IDLE_STATUS;    
 }
 
 //main
 void loop() {
-  //noInterrupts(); //turn interrupts off
-  //wake up
-
-  // Wait between measurements.
-  //can probably be replaced by waiting for IRQ from RTC
-  delay(SAMPLE_RESOLUTION);
-  //Data Assignments
-  //Use float for higher resolution
-
+  if(LP){
+    //power management fun
+    //attachInterrupt(0, wakeup, CHANGE);
+    //Serial.println("boutta go to sleep");
+    //rtc.setAlarm1(rtc.minute() + 1); //alarm1 triggered when minute increments by 5
+    //LowPower.sleep();
+    //Serial.println("Woke up!");
+    //detachInterrupt(0); 
+  }
+  else
+    delay(SAMPLE_RESOLUTION);
+  
   //read temp
-  float Temp = sht31.readTemperature();
+  Temp = sht31.readTemperature();
   //read humidity
-  float Hum = sht31.readHumidity();
+  Hum = sht31.readHumidity();
   //get ppm information
-  float PPM = getppm();//concentration;
+  PPM = getppm();//concentration;
   //read O3
-  float Ozone = analogRead(OZONEPIN); //Read value from ozone pin
+  Ozone = analogRead(OZONEPIN); //Read value from ozone pin
   //Ozone = 385 - (Ozone / 2); //ozone w/ a calibration curve
   //read CO
-  float CO = analogRead(COPIN);
+  CO = analogRead(COPIN);
 
-  printdata(Temp, Hum, PPM, Ozone, CO);
-  logdata(Temp, Hum, PPM, Ozone, CO);
-  postdata(Temp,Hum,PPM,Ozone,CO);
+  printdata();
+  logdata();
+  
+  if(WIFIEN)
+    postdata();
   //go back to sleep
   //interrupts(); //turn interrupts back on
 }
