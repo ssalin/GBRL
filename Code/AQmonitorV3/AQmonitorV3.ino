@@ -22,6 +22,22 @@
 #include <SD.h>  // SD lib
 #include "Adafruit_SHT31.h" //temp/RH sensor lib
 #include <SparkFunDS3234RTC.h> //rtc lib
+<<<<<<< HEAD
+//#include "ArduinoLowPower.h"
+/**********/
+/*Settings*/
+/**********/
+#define SAMPLE_RESOLUTION 10000//200000//posts about every 17 mins? ////300000 5 mins, posts every 17? //600000 10 mins posts every 40??
+#define FILENAME "DATA.csv"
+#define WIFIEN 1//change to 1 if wifi connection is used
+const PROGMEM char* MY_SSID = "PSU"; //"TEQUILA BATTERIES 2.4GHz";
+#define SECURED 0 //change to 1 if the netwrok is secure
+const PROGMEM char* MY_PWD =  "";//"HOOKERDICK69";   //""; //wifi password
+#define DEV_NAME "DEV1"
+#define LP 0 // change to 1 to use power saving code
+#define SDP 1 //change to 1 if there is an SD card present
+#define DEBUG 1 // change to 1 to not print to serial
+=======
 //#include <ArduinoLowPower.h>
 /**********/
 /*Settings*/
@@ -34,6 +50,7 @@ const PROGMEM char* MY_SSID = "TEQUILA BATTERIES 2.4GHz";//"PSU";
 const PROGMEM char* MY_PWD =  "HOOKERDICK69";   //""; //wifi password
 #define DEV_NAME "DEV2"
 #define LP 0 // change to 1 to use power saving code
+>>>>>>> origin/master
 /***************/
 /**Definitions**/
 /***************/
@@ -78,6 +95,15 @@ int status = WL_IDLE_STATUS; //global to avoid passing
 /**************/
 /**Functions**/
 /*************/
+<<<<<<< HEAD
+void wakeup(){
+  Serial.begin(9600); 
+  Serial.println("Woke up!");
+} 
+void printWifiStatus() {
+  // print the SSID of the network you're attached to:
+  Serial.print(F("SSID: "));
+=======
 void wakeup(){ 
   //empty funcion
   //because IRQ handler needs a function
@@ -86,11 +112,16 @@ void wakeup(){
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print("SSID: ");
+>>>>>>> origin/master
   Serial.println(WiFi.SSID());
 
   // print your WiFi shield's IP address:
   IPAddress ip = WiFi.localIP();
+<<<<<<< HEAD
+  Serial.print(F("IP Address: "));
+=======
   Serial.print("IP Address: ");
+>>>>>>> origin/master
   Serial.println(ip);
   // print the received signal strength:
   long rssi = WiFi.RSSI();
@@ -109,6 +140,10 @@ void Con2wifi(){
       status = WiFi.begin(MY_SSID); //connect to open wifi
    delay(10000);  // wait 10 seconds for connection:
   }
+<<<<<<< HEAD
+ printWifiStatus();
+=======
+>>>>>>> origin/master
 }
 void setup() {
   //Initialize serial and wait for port to open:
@@ -116,7 +151,11 @@ void setup() {
   starttime = millis();
   delay(5000);
   //while (!Serial){ }
+<<<<<<< HEAD
+  Serial.println(F("serial conection initialized"));
+=======
   Serial.println("serial conection initialized");
+>>>>>>> origin/master
   pinMode(PPMPIN, INPUT); // PPM
   pinMode(OZONEPIN, INPUT); // Ozone
   pinMode(RTC_IRQ, INPUT_PULLUP); // interrupts from RTC
@@ -124,10 +163,14 @@ void setup() {
   
   if (!sht31.begin(0x44))    // Set to 0x45 for alternate i2c addr
     Serial.println(F("Couldn't find SHT31"));
+<<<<<<< HEAD
+    
+=======
   
   //Serial.println(F("starting SD"));
   //if (!SD.begin(SD_CS)) 
   //  Serial.println(F("PROBLEM WITH SD CARD"));
+>>>>>>> origin/master
   Serial.println(F("starting RTC"));
   //else Serial.println("found SHT31");
 
@@ -135,6 +178,15 @@ void setup() {
   rtc.begin(RTC_CS);
   //rtc.autoTime(); //set time to compiler time. will be a little off but VERY close
   rtc.update(); //needs to be done to set alarms
+<<<<<<< HEAD
+  if(LP){
+    LowPower.attachInterruptWakeup(RTC_IRQ, wakeup, FALLING);
+    rtc.enableAlarmInterrupt();
+  }
+}
+
+//this code is only used by K-30 C02 sensor.
+=======
   //rtc.enableAlarmInterrupt();
   //rtc.setAlarm1(30); //alarm1 alert when seconds hits 30
   //rtc.setAlarm1(rtc.minute() + 5); //alarm1 triggered when minute increments by 5
@@ -143,6 +195,7 @@ void setup() {
 //later i will make a different version of the code for with/without CO2
 //because it takes a up a lot of space and is ugly.
 //alternatively ifdef it out
+>>>>>>> origin/master
 int readCO2() {
   int co2_value = 0;  // Store the CO2 value inside this variable.
   digitalWrite(13, HIGH);  // turn on LED
@@ -266,14 +319,22 @@ int logdata() {
 
     //prepping data for ease of appending to WriteMe
     float data[5]; //should really use a #define instead of hardcoded 5. somthing like NUM_SENSORS
+<<<<<<< HEAD
+    //hard-coded because i dont know how to make dynamic arrays nicely outside of assembly, which is GROSS
+=======
     //hard-coded because i dont know how to make dynamic arrays nicely
+>>>>>>> origin/master
     data[0] = Temp;
     data[1] = Hum;
     data[2] = PPM;
     data[3] = Ozone;
     data[4] = CO;
+<<<<<<< HEAD
+    
+=======
 
     //WriteMe += hdate + htime; // timestamp at beginning
+>>>>>>> origin/master
     //get time
     rtc.update();
     String htime = String(rtc.hour()) + ":" + String(rtc.minute()) + ":" + String(rtc.second());
@@ -311,7 +372,11 @@ int logdata() {
 //but it may get changed to azure since sheets isnt very elegant
 int postdata() {
   Con2wifi();
+<<<<<<< HEAD
+  Serial.println(F("\nSending Data to Server...")); 
+=======
   Serial.println("\nSending Data to Server..."); 
+>>>>>>> origin/master
     // if you get a connection, report back via serial:
   WiFiClient client;  //Instantiate WiFi object, can scope from here or Globally
     //API service using WiFi Client through PushingBox then relayed to Google
@@ -331,7 +396,11 @@ int postdata() {
       client.println("User-Agent: MKR1000/1.0");
       client.println();
       client.stop();
+<<<<<<< HEAD
+      Serial.println(F("\nData Sent")); 
+=======
       Serial.println("\nData Sent"); 
+>>>>>>> origin/master
     }
    
     else
@@ -342,6 +411,13 @@ int postdata() {
 }
 
 //main
+<<<<<<< HEAD
+void loop() {  
+  //read temp
+  Temp = sht31.readTemperature();
+  float rtctemp = rtc.temperature(); //the RTC keeps track of temperature too apparently
+  Serial.println(rtctemp);
+=======
 void loop() {
   if(LP){
     //power management fun
@@ -357,6 +433,7 @@ void loop() {
   
   //read temp
   Temp = sht31.readTemperature();
+>>>>>>> origin/master
   //read humidity
   Hum = sht31.readHumidity();
   //get ppm information
@@ -366,6 +443,26 @@ void loop() {
   //Ozone = 385 - (Ozone / 2); //ozone w/ a calibration curve
   //read CO
   CO = analogRead(COPIN);
+<<<<<<< HEAD
+  printdata();
+  logdata();
+  if(WIFIEN)
+    postdata();
+    
+  //go back to sleep  
+  if(LP){ //low power mode
+    Serial.println(F("boutta go to sleep"));
+    rtc.update(); //fix no wakeup?
+    rtc.setAlarm1(rtc.minute() + 1); //alarm1 triggered when minute increments by 5
+    //attatch interupt
+    interrupts(); //turn interrupts on
+    //LowPower.sleep();
+  }
+  else //not low power mode
+    delay(SAMPLE_RESOLUTION);
+  
+}
+=======
 
   printdata();
   logdata();
@@ -375,3 +472,4 @@ void loop() {
   //go back to sleep
   //interrupts(); //turn interrupts back on
 }
+>>>>>>> origin/master
