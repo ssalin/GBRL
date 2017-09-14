@@ -11,7 +11,6 @@
 //  RTC CS-> 6
 //  SD CS -> 7
 //  RTC alarm innterupts will come on A2
-
 /************/
 /**Includes**/
 /************/
@@ -20,11 +19,9 @@
 #include <SD.h>  // SD lib
 #include "Adafruit_SHT31.h" //temp/RH sensor lib
 #include <SparkFunDS3234RTC.h> //rtc lib
-//#include "ArduinoLowPower.h"
 /**********/
 /*Settings*/
 /**********/
-#define SAMPLE_RESOLUTION 10000//200000//posts about every 17 mins? ////300000 5 mins, posts every 17? //600000 10 mins posts every 40??
 #define FILENAME "DATA.csv"
 #define WIFIEN 1//change to 1 if wifi connection is used
 const PROGMEM char* MY_SSID = "TEQUILA BATTERIES 2.4GHz";
@@ -47,12 +44,14 @@ const PROGMEM char* MY_PWD = "HOOKERDICK69";   //""; //wifi password
 /***********/
 /**Globals**/
 /***********/
-//pushingbox API stuff
+WiFiClient client;  //Instantiate WiFi object
+//pushingbox API stuff (might not need soon!)
 const PROGMEM char WEBSITE[] = "api.pushingbox.com"; //pushingbox API server
 const PROGMEM String devid = "v9606769D2CC718F"; //device ID on Pushingbox for our Scenario
-
-//Define analog input and values for for Mics 03 sensor:
-int OzoneMSensorValue = 0;
+//pubnub stuff
+//const PROGMEM char pubkey[] = "Enter-your-pubkey";
+//const PROGMEM char subkey[] = "Enter-your-subkey";
+//const PROGMEM char channel[] = "channel";
 int firstrun = 1; //used to write special things the first time through
 //Set Up digital pin for Shinyei PM sensor
 unsigned long duration;
@@ -65,22 +64,26 @@ float concentration = 0;
 float Temp;
 float Hum;
 float PPM;
-float Ozone; 
+float Ozone;
 float CO;
-
+float rtctemp;
+bool flag = 0; //used for checking return values. flag == true means things did not go well.
 //make a SHT31 object
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 int status = WL_IDLE_STATUS; //global to avoid passing
-
 /**************/
 /**Functions**/
 /*************/
-void wakeup(){ 
-  Serial.println("Woke up!");
-  if(rtc.alarm1())
-    LEDON();
-} 
+void wakeup() {
+  //Serial.println("Woke up!");
+  //if (rtc.alarm1())
+  //  LEDON();
+  //if(rtc.alarm2())
+  //  LEDOFF();
+  rtc.alarm1();
+  rtc.alarm2();
+}
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
   Serial.print(F("SSID: "));
@@ -97,130 +100,60 @@ void printWifiStatus() {
   Serial.println(F(" dBm"));
 }
 
-void Con2wifi(){
+void Con2wifi() {
   while (status != WL_CONNECTED) {
+    LEDON();
+    delay (500);
+    LEDOFF();
+    delay (500);
+    LEDON();
     Serial.print(F("Attempting to connect to Network: "));
     Serial.println(MY_SSID);
-    
-    if(SECURED)
+
+    if (SECURED)
       status = WiFi.begin(MY_SSID, MY_PWD); //connect to secured wifi
     else
       status = WiFi.begin(MY_SSID); //connect to open wifi
-   delay(10000);  // wait 10 seconds for connection:
+    delay(10000);  // wait 10 seconds for connection:
   }
- printWifiStatus();
+  //printWifiStatus();
 }
 
 void LEDON() { //special debug stuff
   digitalWrite(A4, HIGH);
 }
-void LEDOFF(){ //special debug stuff
-  digitalWrite(A4,LOW); 
+void LEDOFF() { //special debug stuff
+  digitalWrite(A4, LOW);
 }
 
 void setup() {
   //Initialize serial and wait for port to open:
   Serial.begin(9600);
   starttime = millis();
-  
-  delay(20000);
-  //while (!Serial){ }
-  Serial.println(F("serial conection initialized"));
+  if (LP) //time to reprogram before sleeping
+    delay(20000);
   pinMode(A4, OUTPUT); //special debug stuff
   LEDON();
   pinMode(PPMPIN, INPUT); // PPM
   pinMode(OZONEPIN, INPUT); // Ozone
   pinMode(RTC_IRQ, INPUT_PULLUP); // interrupts from RTC
   pinMode(COPIN, INPUT); // CO
-  
+
   if (!sht31.begin(0x44))    // Set to 0x45 for alternate i2c addr
     Serial.println(F("Couldn't find SHT31"));
-    
-  Serial.println(F("starting RTC"));
-  //else Serial.println("found SHT31");
 
+  Serial.println(F("starting RTC"));
   //set up RTC
   rtc.begin(RTC_CS);
   //rtc.autoTime(); //set time to compiler time. will be a little off but VERY close
   rtc.update(); //needs to be done to set alarms
-  if(LP){
+  rtc.alarm1(); // clear alarm 1
+  rtc.alarm2(); // clear alarm 2
+  if (LP) {
     EIC->WAKEUP.reg |= (1 << RTC_IRQ); //SHOULD let interrupts wakeup from sleep
-    attachInterrupt(RTC_IRQ,wakeup, LOW);
+    attachInterrupt(RTC_IRQ, wakeup, LOW); //call wakeup when RTC_IRQ is low.
     rtc.enableAlarmInterrupt();
     interrupts();
-  }
-}
-
-//this code is only used by K-30 C02 sensor.
-int readCO2() {
-  int co2_value = 0;  // Store the CO2 value inside this variable.
-  digitalWrite(13, HIGH);  // turn on LED
-  // On most Arduino platforms this pin is used as an indicator light.
-  //////////////////////////
-  /* Begin Write Sequence */
-  //////////////////////////
-  Wire.beginTransmission(0x68);
-  Wire.write(0x22);
-  Wire.write(0x00);
-  Wire.write(0x08);
-  Wire.write(0x2A);
-  Wire.endTransmission();
-  /////////////////////////
-  /* End Write Sequence. */
-  /////////////////////////
-  /*
-    Wait 10ms for the sensor to process our command. The sensors's
-    primary duties are to accurately measure CO2 values. Waiting 10ms
-    ensures the data is properly written to RAM
-  */
-  delay(10);
-  /////////////////////////
-  /* Begin Read Sequence */
-  /////////////////////////
-  /*
-    Since we requested 2 bytes from the sensor we must read in 4 bytes.
-    This includes the payload, checksum, and command status byte.
-  */
-  Wire.requestFrom(0x68, 4);
-  byte i = 0;
-  byte buffer[4] = {0, 0, 0, 0};
-  /*
-    Wire.available() is not necessary. Implementation is obscure but we
-    leave it in here for portability and to future proof our code
-  */
-  while (Wire.available())
-  {
-    buffer[i] = Wire.read();
-    i++;
-  }
-  ///////////////////////
-  /* End Read Sequence */
-  ///////////////////////
-  /*
-    Using some bitwise manipulation we will shift our buffer
-    into an integer for general consumption
-  */
-  co2_value = 0;
-  co2_value |= buffer[1] & 0xFF;
-  co2_value = co2_value << 8;
-  co2_value |= buffer[2] & 0xFF;
-  byte sum = 0; //Checksum Byte
-  sum = buffer[0] + buffer[1] + buffer[2]; //Byte addition utilizes overflow
-  if (sum == buffer[3])
-  {
-    // Success!
-    digitalWrite(13, LOW);
-    return co2_value;
-  }
-  else
-  {
-    // Failure!
-    /*
-      Checksum failure can be due to a number of factors,
-      fuzzy electrons, sensor busy, etc.
-    */
-    digitalWrite(13, LOW);
-    return 0;
   }
 }
 
@@ -231,11 +164,6 @@ float getppm() {
   if ((millis() - starttime) > sampletime_ms) {
     ratio = lowpulseoccupancy / (sampletime_ms * 10.0); // Integer percentage 0=>100
     concentration = 1.1 * pow(ratio, 3) - 3.8 * pow(ratio, 2) + 520 * ratio + 0.62; // using spec sheet curve
-    //Serial.print(lowpulseoccupancy);
-    //Serial.print(",");
-    //Serial.print(ratio);
-    //Serial.print(",");
-    //Serial.println(concentration);
     lowpulseoccupancy = 0;
     starttime = millis();
   }
@@ -260,11 +188,12 @@ void printdata() {
   Serial.print(F("CO Concentration: "));
   Serial.println(CO);
   Serial.println();
+  return;
 }
 
 //function to write data to SD card.
 int logdata() {
-  
+
   SD.begin(SD_CS); //for some reason this fixed it only writing once.
   //string that gets written to SD card
   String WriteMe = "";
@@ -281,7 +210,7 @@ int logdata() {
     data[2] = PPM;
     data[3] = Ozone;
     data[4] = CO;
-    
+
     //get time
     rtc.update();
     String htime = String(rtc.hour()) + ":" + String(rtc.minute()) + ":" + String(rtc.second());
@@ -316,77 +245,88 @@ int logdata() {
 }
 
 //function for sending data to cloud. right now it uses google sheets
-//but it may get changed to azure since sheets isnt very elegant
+//but it may get changed to azure/AWS/similar/
+//need to add a spot for RTC temp.
 int postdata() {
-  Con2wifi();
-  Serial.println(F("\nSending Data to Server...")); 
-    // if you get a connection, report back via serial:
-  WiFiClient client;  //Instantiate WiFi object, can scope from here or Globally
-    //API service using WiFi Client through PushingBox then relayed to Google
-    if (client.connect(WEBSITE, 80)){ 
-         client.print("GET /pushingbox?devid=" + devid
-       + "&humidityData=" + (String) Temp
-       + "&celData="      + (String) Hum
-       + "&fehrData="     + (String) PPM
-       + "&hicData="      + (String) Ozone
-       + "&hifData="      + (String) CO
-       + "&name="         + (String) DEV_NAME
-         );
+  Serial.println(F("\nSending Data to Server..."));
+  //API service using WiFi Client through PushingBox then relayed to Google
+  if (client.connect(WEBSITE, 80)) {
+    client.print("GET /pushingbox?devid=" + devid
+                 + "&humidityData=" + (String) Temp
+                 + "&celData="      + (String) Hum
+                 + "&fehrData="     + (String) PPM
+                 + "&hicData="      + (String) Ozone
+                 + "&hifData="      + (String) CO
+                 + "&name="         + (String) DEV_NAME
+                );
 
-      client.println(" HTTP/1.1"); 
-      client.print("Host: ");
-      client.println(WEBSITE);
-      client.println("User-Agent: MKR1000/1.0");
-      client.println();
-      client.stop();
-      Serial.println(F("\nData Sent")); 
-    }
-   
-    else
-      Serial.println(F("ERROR CONNECTING TO SERVER"));
- 
-    WiFi.disconnect();
-    status = WL_IDLE_STATUS;    
+    client.println(" HTTP/1.1");
+    client.print("Host: ");
+    client.println(WEBSITE);
+    client.println("User-Agent: MKR1000/1.0");
+    client.println();
+    client.stop();
+    Serial.println(F("\nData Sent"));
+  }
+
+  else{
+    Serial.println(F("ERROR CONNECTING TO SERVER"));
+    return 1;
+  }
+    
+  return 0;
 }
 
 //main
-void loop() {  
+void loop() {
   //read temp
+  LEDON();
   Temp = sht31.readTemperature();
-  float rtctemp = rtc.temperature(); //the RTC keeps track of temperature too apparently
+  rtctemp = rtc.temperature(); //the RTC keeps track of temperature too apparently
   Serial.println(rtctemp);
-  //read humidity
-  Hum = sht31.readHumidity();
-  //get ppm information
+  Hum = sht31.readHumidity(); //read humidity
+  //get particulate information
   PPM = getppm();//concentration;
-  //read O3
   Ozone = analogRead(OZONEPIN); //Read value from ozone pin
   //Ozone = 385 - (Ozone / 2); //ozone w/ a calibration curve
-  //read CO
-  CO = analogRead(COPIN);
-  printdata();
-  logdata();
-  if(WIFIEN){
-    LEDON();
-    delay(500);
-    LEDOFF();
-    delay(500);
-    LEDON();
-    postdata();
-    LEDOFF();
+  CO = analogRead(COPIN); //carbon monoxide
+  //printdata();
+  //logdata();
+  if (WIFIEN) {
+    flag = 1;
+    while(flag){
+      Con2wifi();
+      LEDOFF();
+      delay(1000);
+      LEDON();
+      delay(1000);
+      LEDOFF();
+      delay(1000);
+      LEDON();
+      flag = postdata(); //will be set to 0 when connection goes through.
+      LEDOFF();
+      delay(5000);
+      LEDON();
+      WiFi.disconnect();
+      status = WL_IDLE_STATUS;
+    }
   }
-  //go back to sleep  
-  if(LP){ //low power mode
+  //go back to sleep
+  if (LP) { //low power mode
     Serial.println(F("boutta go to sleep"));
+    LEDOFF();
     rtc.update(); //fix no wakeup?
-    rtc.setAlarm1(rtc.minute() + 5); //alarm1 triggered when minute increments by 5
+    rtc.setAlarm1(rtc.second(), rtc.minute() + 10); //alarm1 triggered when minute increments by 1; //alarm1 triggered when minute increments by 5
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk; //turn on deep sleep SAMD board specific.
     __DSB(); //finish memory stuff
-    //interrupts();   
+    //interrupts(); //maybe fixes light staying on?
     __WFI(); //wait for interrupt
-    //noInterrupts();    
+    //noInterrupts(); //maybe fixes light staying on?
   }
-  else //not low power mode
-    delay(SAMPLE_RESOLUTION);
-  
+  else{
+    rtc.setAlarm1(rtc.second(), rtc.minute() + 10); 
+    while (!rtc.alarm1()){
+      delay (100);
+    }
+  }
 }
