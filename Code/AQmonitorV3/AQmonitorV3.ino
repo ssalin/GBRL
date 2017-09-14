@@ -23,6 +23,7 @@
 /*Settings*/
 /**********/
 #define FILENAME "DATA.csv"
+#define SAMPLE_MINS 10 //how many minutes to sample for
 #define WIFIEN 1//change to 1 if wifi connection is used
 const PROGMEM char* MY_SSID = "TEQUILA BATTERIES 2.4GHz";
 #define SECURED 1 //change to 1 if the netwrok is secure
@@ -267,16 +268,15 @@ int postdata() {
     client.println();
     client.stop();
     Serial.println(F("\nData Sent"));
+    return 0;
   }
 
   else{
     Serial.println(F("ERROR CONNECTING TO SERVER"));
     return 1;
   }
-    
-  return 0;
 }
-
+int tmp;
 //main
 void loop() {
   //read temp
@@ -315,8 +315,13 @@ void loop() {
   if (LP) { //low power mode
     Serial.println(F("boutta go to sleep"));
     LEDOFF();
+    tmp = 0;
     rtc.update(); //fix no wakeup?
-    rtc.setAlarm1(rtc.second(), rtc.minute() + 10); //alarm1 triggered when minute increments by 1; //alarm1 triggered when minute increments by 5
+    tmp = 60-rtc.minute(); // use tmp to figure out if the hour changes
+    if(tmp > SAMPLE_MINS)
+      rtc.setAlarm1(rtc.second(), rtc.minute() + SAMPLE_MINS); //alarm1 triggered when minute increments by 1; //alarm1 triggered when minute increments by 5
+    else
+      rtc.setAlarm1(rtc.second(),SAMPLE_MINS - tmp);
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk; //turn on deep sleep SAMD board specific.
     __DSB(); //finish memory stuff
     //interrupts(); //maybe fixes light staying on?
@@ -324,7 +329,7 @@ void loop() {
     //noInterrupts(); //maybe fixes light staying on?
   }
   else{
-    rtc.setAlarm1(rtc.second(), rtc.minute() + 10); 
+    rtc.setAlarm1(rtc.second(), rtc.minute() + SAMPLE_MINS); 
     while (!rtc.alarm1()){
       delay (100);
     }
