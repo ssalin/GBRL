@@ -77,15 +77,15 @@ int status = WL_IDLE_STATUS; //global to avoid passing
 /**************/
 /**Functions**/
 /*************/
-void(* resetFunc) (void) = 0; //reset function?
+//void(* resetFunc) (void) = 0; //reset function?
 void wakeup() {
   Serial.println("in IRQ VECTOR SONN");
   if(rtc.alarm1())
     flag = 1;
-  if(rtc.alarm2()){
-    Serial.println("boutta reset");
-    resetFunc(); //hopefull this resets the prog
-  }    
+  //if(rtc.alarm2()){
+  //  Serial.println("boutta reset");
+  //  resetFunc(); //hopefull this resets the prog
+  //}    
 }
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
@@ -122,10 +122,10 @@ void Con2wifi() {
 }
 
 void LEDON() { //special debug stuff
-  digitalWrite(A4, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 void LEDOFF() { //special debug stuff
-  digitalWrite(A4, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void setup() {
@@ -133,8 +133,8 @@ void setup() {
   Serial.begin(9600);
   starttime = millis();
   if (LP) //time to reprogram before sleeping
-    delay(20000);
-  pinMode(A4, OUTPUT); //special debug stuff
+  delay(20000);
+  pinMode(LED_BUILTIN, OUTPUT); //special debug stuff
   pinMode(PPMPIN, INPUT); // PPM
   pinMode(OZONEPIN, INPUT); // Ozone
   pinMode(RTC_IRQ, INPUT_PULLUP); // interrupts from RTC
@@ -276,12 +276,12 @@ void sleepalarm(){ //alarm to wake from sleep / reset if needed
     if(tmp > SAMPLE_MINS){
       Serial.println("Alarm set addative");
       rtc.setAlarm1(rtc.second(), rtc.minute() + SAMPLE_MINS,255,255,255,255); //255 means ignore feild. see RTC library code.
-      rtc.setAlarm2(rtc.second(), rtc.minute() + SAMPLE_MINS + 1);
+    //  rtc.setAlarm2(rtc.second(), rtc.minute() + SAMPLE_MINS + 1);
     }
     else{
       Serial.println(F("alarm time overflow"));
       rtc.setAlarm1(rtc.second(),SAMPLE_MINS - tmp);
-      rtc.setAlarm2(rtc.second(),(SAMPLE_MINS - tmp + 3));
+    //  rtc.setAlarm2(rtc.second(),(SAMPLE_MINS - tmp + 3));
     }
 }
 
@@ -297,7 +297,7 @@ void rstalarm(){ //sets alarm to reset prog if it gets stuck
 //main
 void loop() {
   //read temp
-  rstalarm();
+  //rstalarm();
   LEDON();
   Temp = sht31.readTemperature();
   rtctemp = rtc.temperature(); //the RTC keeps track of temperature too apparently
@@ -333,14 +333,16 @@ void loop() {
   }
   else{
     Serial.println(F("in wait loop"));
+    //rtc.alarm1(); //stop the doubleposting?
     sleepalarm();
+    delay(10000); //wait a sec to make sure the alarm has been set
     //noInterrupts(); //turning off interrupts also turns off serial output, apparently. not sure if it's getting stuck trying to print
     while (!flag){
       LEDON();
       delay (5000);
+      Serial.println(F("waiting"));
       LEDOFF();
       delay(5000);
-      //Serial.println(F("waiting"));
     }
     //interrupts();
   }
