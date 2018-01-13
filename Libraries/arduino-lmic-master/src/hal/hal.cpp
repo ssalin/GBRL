@@ -74,7 +74,7 @@ static void hal_io_check() {
 // -----------------------------------------------------------------------------
 // SPI
 
-static const SPISettings settings(1E6, MSBFIRST, SPI_MODE0); //need to try different speeds
+static const SPISettings settings(7E6, MSBFIRST, SPI_MODE0); //need to try different speeds
 
 static void hal_spi_init () {
     SPI.begin();
