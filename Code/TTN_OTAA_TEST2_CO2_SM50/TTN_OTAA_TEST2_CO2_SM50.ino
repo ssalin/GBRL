@@ -37,6 +37,7 @@ FLOATUNION_t Hum;
 FLOATUNION_t PPM;
 FLOATUNION_t Ozone;
 FLOATUNION_t CO;
+FLOATUNION_t CO2;
 FLOATUNION_t RTCTEMP;
 bool JOINSTATUS = 0;
 
@@ -282,10 +283,11 @@ void getdata(){
   PPM.val = getppm();//concentration;
   Ozone.val = analogRead(OZONEPIN); //Read value from ozone pin
   CO.val = analogRead(COPIN); //carbon monoxide
+  CO2.val=readCO2();
 }
 
 void senddata(){
-     uint8_t buf [24]; //buffer for sent data
+     uint8_t buf [28]; //buffer for sent data
       // Check if there is not a current TX/RX job running
     if (LMIC.opmode & OP_TXRXPEND) {
         Serial.println(F("OP_TXRXPEND, not sending"));
@@ -321,6 +323,10 @@ void senddata(){
         buf[22] = CO.bytes[2];
         buf[23] = CO.bytes[3];
 
+        buf[24] = CO2.bytes[0];
+        buf[25] = CO2.bytes[1];
+        buf[26] = CO2.bytes[2];
+        buf[27] = CO2.bytes[3];
         
         LMIC_setTxData2(1, buf, sizeof(buf), 0);
         Serial.println(F("Packet queued"));

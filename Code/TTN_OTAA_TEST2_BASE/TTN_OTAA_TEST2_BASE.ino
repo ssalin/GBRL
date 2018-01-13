@@ -226,53 +226,8 @@ void printdata() {
   Serial.println(Ozone.val);
   Serial.print(F("CO Concentration: "));
   Serial.println(CO.val);
-  Serial.print(F("CO2 Concentration: "));
-  Serial.println(CO2.val);
   Serial.println();
   return;
-}
-
-float readCO2() 
-{ 
-  int co2_value = 0;  // Store the CO2 value inside this variable. 
-  int co2Addr = 0x68;
-  Wire.beginTransmission(co2Addr); 
-  Wire.write(0x22); 
-  Wire.write(0x00); 
-  Wire.write(0x08); 
-  Wire.write(0x2A); 
-  Wire.endTransmission(); 
-  delay(10); 
-  Wire.requestFrom(co2Addr, 4); 
-  byte i = 0; 
-  byte buffer[4] = {0, 0, 0, 0}; 
-  while (Wire.available()) 
-  { 
-    buffer[i] = Wire.read(); 
-    i++; 
-  } 
-  co2_value = 0; 
-  co2_value |= buffer[1] & 0xFF; 
-  co2_value = co2_value << 8; 
-  co2_value |= buffer[2] & 0xFF; 
-  byte sum = 0; //Checksum Byte 
-  sum = buffer[0] + buffer[1] + buffer[2]; //Byte addition utilizes overflow 
-  if (sum == buffer[3]) 
-  { 
-    // Success! 
-    digitalWrite(13, LOW); 
-    return co2_value; 
-  } 
-  else 
-  { 
-    // Failure! 
-    /* 
-      Checksum failure can be due to a number of factors, 
-      fuzzy electrons, sensor busy, etc. 
-    */ 
-    digitalWrite(13, LOW); 
-    return 0; 
-  } 
 }
 
 void getdata(){
@@ -321,6 +276,10 @@ void senddata(){
         buf[22] = CO.bytes[2];
         buf[23] = CO.bytes[3];
 
+        //buf[24] = CO2.bytes[0];
+        //buf[25] = CO2.bytes[1];
+        //buf[26] = CO2.bytes[2];
+        //buf[27] = CO2.bytes[3];
         
         LMIC_setTxData2(1, buf, sizeof(buf), 0);
         Serial.println(F("Packet queued"));
