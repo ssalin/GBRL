@@ -25,9 +25,9 @@
 #define FILENAME "DATA.csv" //name of data file
 #define SAMPLE_MINS 5 //how many minutes to sample for. EPA challenge is 5-min samples
 #define WIFIEN 0//change to 1 if wifi connection is used
-const PROGMEM char* MY_SSID = "TEQUILA BATTERIES 2.4GHz";
+const PROGMEM char* MY_SSID = "";
 #define SECURED 1 //change to 1 if the netwrok is secure
-const PROGMEM char* MY_PWD = "HOOKERDICK69";   //""; //wifi password
+const PROGMEM char* MY_PWD = "";   //""; //wifi password
 #define DEV_NAME "DEV_2" //change for each device
 #define LP 1 // change to 1 to use power saving code
 #define SM50 0 //change to 1 if using SM50 ozone sensor
