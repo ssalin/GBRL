@@ -169,7 +169,6 @@ void do_send(osjob_t* j){
 void setup() {
     delay(10000);
     Serial.begin(9600);
-    while(!Serial){}
     Serial.println(F("Starting"));
     pinMode(PPMPIN, INPUT); // PPM
     PPM.val = 1000;
